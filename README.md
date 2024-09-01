@@ -22,9 +22,9 @@ This layer handles the deployment of kubernetes services using Terraform. It han
 - Metrics server <br>
 This uses the images in ecr to create a deployment.
 
-<img width="344" src="images/deployment.png">
-<img width="344" src="images/svc_output.png">
-<img width="344" src="images/svc.png">
+<img width="1344" src="images/deployment.png">
+<img width="1344" src="images/svc_output.png">
+<img width="1344" src="images/svc.png">
 
 # GITHUB ACTIONS
 THe workflow for GitHub actions is :
