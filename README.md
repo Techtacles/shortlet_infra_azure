@@ -1,0 +1,1 @@
+# shortlet_infra_azure
