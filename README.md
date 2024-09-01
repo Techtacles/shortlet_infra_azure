@@ -29,3 +29,4 @@ This uses the images in ecr to create a deployment.
 # GITHUB ACTIONS
 THe workflow for GitHub actions is :
 --> Terraform build azuremresources --> Build and push application layer to acr --> Build the kubernetes internal layer --> Update the terraform docs dynamically
+<img width="1344" src="images/cicd.png">
