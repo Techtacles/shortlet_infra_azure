@@ -1,0 +1,7 @@
+*.tfvars
+.DS_Store
+.terraform
+*.lock.hcl
+__pycache__
+*.vscode
+*.pyc

@@ -1,0 +1,137 @@
+name: "Terraform Continous Integration Acceptance workflow"
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+    ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+    ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+    ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    ARM_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+
+  
+jobs:
+  initial-build:
+    name: "Build initial terraform resources"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Export Terraform TFVARS file
+        working-directory: ./infra/azure_modules
+        run: |
+          echo "$TERRAFORM_VARIABLES" >> terraform.tfvars
+        shell: bash
+        env:
+          TERRAFORM_VARIABLES: ${{ secrets.TERRAFORM_VARIABLES }}
+
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        working-directory: ./infra/azure_modules
+        run: terraform init  -upgrade
+       
+
+      - name: Terraform Plan
+        working-directory: ./infra/azure_modules
+        run: terraform plan -lock=false -var-file="terraform.tfvars"
+        
+      - name: Terraform Apply
+        working-directory: ./infra/azure_modules
+        run: terraform apply -lock=false -var-file="terraform.tfvars" -auto-approve 
+
+  build-latest-image:
+    name: "Build and push to acr"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+    
+      - name: Setup docker
+        uses: docker/setup-buildx-action@v3
+    
+      - name: Build and push image
+        working-directory: ./application
+        run: |
+          az acr login --name shortletacr  
+          docker build -t shortletimage . 
+          docker tag shortletimage:latest shortletacr.azurecr.io/shortletimage
+          docker push shortletacr.azurecr.io/shortletimage
+
+  build-kubernetes-layer:
+    name: "Build kube resources"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+    
+      - name: Export Terraform TFVARS file
+        working-directory: ./infra/kube_internals
+        run: |
+          echo "$TERRAFORM_VARIABLES" >> terraform.tfvars
+        shell: bash
+        env:
+          TERRAFORM_VARIABLES: ${{ secrets.TERRAFORM_VARIABLES }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+
+      - name: Terraform Init
+        working-directory: ./infra/kube_internals
+        run: terraform init  -upgrade
+    
+
+      - name: Terraform Plan
+        working-directory: ./infra/kube_internals
+        run: terraform plan -lock=false -var-file="terraform.tfvars"
+    
+      - name: Terraform Apply
+        working-directory: ./infra/kube_internals
+        run: terraform apply -lock=false -var-file="terraform.tfvars" -auto-approve 
+
+
+  generate-tfdocs-layer:
+    name: "Generate docs"
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+            
+    
+      - name: Export Terraform TFVARS file
+        uses: terraform-docs/gh-actions@v1.0.0
+        with:
+          working-dir: ./infra/azure_modules
+          output-file: README.md
+          output-method: inject
+          git-push: true
+
