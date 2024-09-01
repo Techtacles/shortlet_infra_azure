@@ -57,6 +57,7 @@ jobs:
   build-latest-image:
     name: "Build and push to acr"
     runs-on: ubuntu-latest
+    needs: initial-build
     
     defaults:
       run:
@@ -72,14 +73,21 @@ jobs:
       - name: Build and push image
         working-directory: ./application
         run: |
-          az acr login --name shortletacr  
+          az login --service-principal -u "$ARM_CLIENT_ID" --tenant "$ARM_TENANT_ID" 
           docker build -t shortletimage . 
           docker tag shortletimage:latest shortletacr.azurecr.io/shortletimage
           docker push shortletacr.azurecr.io/shortletimage
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+
 
   build-kubernetes-layer:
     name: "Build kube resources"
     runs-on: ubuntu-latest
+    needs: build-latest-image
     
     defaults:
       run:
@@ -117,6 +125,7 @@ jobs:
   generate-tfdocs-layer:
     name: "Generate docs"
     runs-on: ubuntu-latest
+    needs: build-kubernetes-layer
     
     defaults:
       run:
@@ -125,6 +134,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
             
     
       - name: Export Terraform TFVARS file
